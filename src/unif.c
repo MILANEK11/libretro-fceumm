@@ -365,7 +365,7 @@ static BMAPPING bmap[] = {
 	{ "H2288", UNLH2288_Init, 0 },
 	{ "HKROM", HKROM_Init, 0 },
 	{ "KOF97", UNLKOF97_Init, 0 },
-	{ "KONAMI-QTAI", Mapper190_Init, 0 },
+/*	{ "KONAMI-QTAI", Mapper190_Init, 0 }, */
 	{ "KS7012", UNLKS7012_Init, 0 },
 	{ "KS7013B", UNLKS7013B_Init, 0 },
 	{ "KS7016", UNLKS7016_Init, 0 },
@@ -491,6 +491,7 @@ static BMAPPING bmap[] = {
 	{ "KS7021A", UNLKS7021A_Init, 0 },
 	{ "KS106C", BMCKS106C_Init, 0 },
 	{ "900218", BTL900218_Init, 0 },
+	{ "JC-016-2", Mapper205_Init, 0 },
 
 #ifdef COPYFAMI
 	{ "COPYFAMI_MMC3", MapperCopyFamiMMC3_Init, 0 },

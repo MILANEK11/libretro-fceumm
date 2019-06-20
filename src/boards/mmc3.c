@@ -1169,20 +1169,29 @@ void Mapper198_Init(CartInfo *info) {
 }
 
 /* ---------------------------- Mapper 205 ------------------------------ */
+/* --------------------------- BMC-JC-016-2 ----------------------------- */
 /* https://wiki.nesdev.com/w/index.php/INES_Mapper_205 */
+static uint8 block[] = { 0, 0, 1, 2 };
 
 static void M205PW(uint32 A, uint8 V) {
-	setprg8(A, EXPREGS[0] & 0x30 | (V & (!(EXPREGS[0] & 0xC0) ? 0x1F : 0x0F)));
+	uint8 prgmask = (EXPREGS[0] & 0x02) ? 0x0F : 0x1F;
+	if (PRGptr[block[EXPREGS[0]]]) /* support for split-roms */
+		setprg8r(block[EXPREGS[0]], A, V & prgmask);
+	else
+		setprg8(A, EXPREGS[0] << 4 | V & prgmask);
 }
 
 static void M205CW(uint32 A, uint8 V) {
-	uint16 reg = (uint16)EXPREGS[0] & 0x30;
-	setchr1(A, (reg << 3) | V);
+	uint8 chrmask = (EXPREGS[0] & 0x02) ? 0x7F : 0xFF;
+	if (CHRptr[block[EXPREGS[0]]]) /* support for split-roms */
+		setchr1r(block[EXPREGS[0]], A, V & chrmask);
+	else
+		setchr1(A, EXPREGS[0] << 7 | V & chrmask);
 }
 
 static DECLFW(M205Write0) {
 	if (EXPREGS[1] == 0) {
-		EXPREGS[0] = (V << 4) & 0x30;
+		EXPREGS[0] = V & 0x03;
 		EXPREGS[1] = A & 0x80;
 		FixMMC3PRG(MMC3_cmd);
 		FixMMC3CHR(MMC3_cmd);
@@ -1212,7 +1221,7 @@ static void M205Power(void) {
 }
 
 void Mapper205_Init(CartInfo *info) {
-	GenMMC3_Init(info, 128, 128, 8, 0);
+	GenMMC3_Init(info, 512, 512, 8, 0);
 	pwrap = M205PW;
 	cwrap = M205CW;
 	info->Power = M205Power;
