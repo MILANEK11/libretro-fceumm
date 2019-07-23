@@ -1,0 +1,58 @@
+#include	"..\DLL\d_iNES.h"
+#include	"..\Hardware\h_MMC3.h"
+
+namespace {
+uint8_t OuterBank;
+
+void	Sync (void) {
+	MMC3::SyncMirror();
+	int Bank = ((OuterBank &0x20) >>2) | (OuterBank &0x06);
+	MMC3::SyncPRG(0x1F, Bank <<4);
+	MMC3::SyncCHR_ROM(0x7F, Bank <<6);
+}
+
+BOOL	MAPINT	Load (void) {
+	MMC3::Load(Sync);
+	return TRUE;
+}
+
+int	MAPINT	SaveLoad (STATE_TYPE mode, int offset, unsigned char *data) {
+	SAVELOAD_BYTE(mode, offset, data, OuterBank);
+	offset = MMC3::SaveLoad(mode, offset, data);
+	if (mode == STATE_LOAD)	Sync();
+	return offset;
+}
+
+void	MAPINT	WriteOuterBank (int Bank, int Addr, int Val) {
+	if (~OuterBank &0x80) {
+		OuterBank =Val;
+		Sync();
+	}
+}
+
+void	MAPINT	Reset (RESET_TYPE ResetType) {	
+	if (ResetType ==RESET_HARD || (OuterBank &0x3F)==0) OuterBank =0; // Soft-resetting from FC原人 returns to multicart menu, so release lock in that case as well
+	MMC3::Reset(ResetType);
+	MMC3::SetWRAMCallback(NULL, WriteOuterBank);
+}
+
+void	MAPINT	Unload (void) {
+	MMC3::Unload();
+}
+
+uint16_t MapperNum =267;
+} // namespace
+
+MapperInfo MapperInfo_267 ={
+	&MapperNum,
+	_T("晶太 EL861121C"),
+	COMPAT_FULL,
+	Load,
+	Reset,
+	Unload,
+	NULL,
+	MMC3::PPUCycle,
+	SaveLoad,
+	NULL,
+	NULL
+};
