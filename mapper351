@@ -1,0 +1,80 @@
+/*				5000	5001	5002	MMC3 CHR Reg Data
+	Pokemon Monsters	C0	60	24			
+	Pokemon Golden		40	20	24			Tom & Jerry (128+128)
+	Pokemon Silver		80	40	24			Little Nemo (128+128)
+	New Human		00	00	90	00
+	Aladdin			10	08	90	20
+	Formation Z		2C	10	D4	58
+	Mario Brothers		24	14	D4	48
+	Lode Runner		28	18	D4	50
+	Tennis			20	1C	D4	40	
+*/
+
+#include	"..\DLL\d_iNES.h"
+#include	"..\Hardware\h_MMC3.h"
+
+namespace {
+uint8_t	Mode, PRGBase, CHRBase;
+
+void	Sync (void) {
+	switch(Mode >>6) {
+		case 0: 
+		case 1:	MMC3::SyncPRG((Mode &0x20)? 0x0F: 0x1F, PRGBase >>1);
+			MMC3::SyncCHR_ROM((Mode &0x20)? 0x7F: 0xFF, CHRBase <<1);
+			break;
+		case 2:	EMU->SetPRG_ROM32(0x8, PRGBase >>3);
+			MMC3::SyncCHR_ROM(0x1F, CHRBase <<1);
+			break;
+		case 3: EMU->SetPRG_ROM16(0x8, PRGBase >>2);
+			EMU->SetPRG_ROM16(0xC, PRGBase >>2);
+			MMC3::SyncCHR_ROM(0x1F, CHRBase <<1);
+			break;
+	}
+	MMC3::SyncMirror();
+	MMC3::SyncWRAM();
+}
+
+void	MAPINT	Write5 (int Bank, int Addr, int Val) {
+	switch (Addr &3) {
+		case 0: CHRBase =Val; Sync(); break;
+		case 1: PRGBase =Val; Sync(); break;
+		case 2: Mode =Val; Sync(); break;
+	}
+}
+
+BOOL	MAPINT	Load (void) {
+	MMC3::Load(Sync);
+	return TRUE;
+}
+
+void	MAPINT	Reset (RESET_TYPE ResetType) {
+	Mode =PRGBase =CHRBase =0; // Board detects reset through M2 interruption and resets the outer bank register
+	MMC3::Reset(ResetType);
+	EMU->SetCPUWriteHandler(0x5, Write5);
+}
+
+int	MAPINT	SaveLoad (STATE_TYPE mode, int offset, unsigned char *data) {
+	offset =MMC3::SaveLoad(mode, offset, data);
+	SAVELOAD_BYTE(mode, offset, data, Mode);
+	SAVELOAD_BYTE(mode, offset, data, PRGBase);
+	SAVELOAD_BYTE(mode, offset, data, CHRBase);
+	if (mode ==STATE_LOAD) Sync();
+	return offset;
+}
+
+uint16_t MapperNum =260;
+} // namespace
+
+MapperInfo MapperInfo_351 ={
+	&MapperNum,
+	_T("9-in-1 MMC3 multicart"),
+	COMPAT_FULL,
+	Load,
+	Reset,
+	MMC3::Unload,
+	NULL,
+	MMC3::PPUCycle,
+	SaveLoad,
+	NULL,
+	NULL
+};
