@@ -1,0 +1,62 @@
+#include	"..\DLL\d_iNES.h"
+#include	"..\Hardware\h_VRC4.h"
+
+namespace VRC4 {
+extern uint16_t	CHR[8];
+}
+
+namespace {	
+int	CurrentCHRBank;
+FPPURead _ReadCHR;
+
+void	Sync (void) {
+	VRC4::SyncPRG(0x0F, (VRC4::CHR[CurrentCHRBank] &0x180) >>3);
+	VRC4::SyncCHR_ROM(0x7F, VRC4::CHR[CurrentCHRBank] &0x180);
+	VRC4::SyncMirror();
+}
+
+int	MAPINT	ReadCHR (int Bank, int Addr) {
+	CurrentCHRBank =Bank;
+	Sync();
+	return _ReadCHR(Bank, Addr);
+}
+
+void	MAPINT	WriteIRQ (int Bank, int Addr, int Val) {
+	if ((Addr &3) ==3)
+		EMU->SetIRQ(1);
+	else
+		VRC4::WriteIRQ(Bank, Addr, Val);
+}
+
+BOOL	MAPINT	Load (void) {
+	iNES_SetSRAM();
+	VRC4::Load(Sync, 0x01, 0x02);
+	return TRUE;
+}
+
+void	MAPINT	Reset (RESET_TYPE ResetType) {
+	VRC4::Reset(ResetType);
+	_ReadCHR =EMU->GetPPUReadHandler(0);
+	for (int i =0; i <8; i++) {
+		EMU->SetPPUReadHandler(i, ReadCHR);
+		EMU->SetPPUReadHandlerDebug(i, _ReadCHR);
+	}
+	EMU->SetCPUWriteHandler(0xF, WriteIRQ);
+}
+
+uint16_t MapperNum =362;
+} // namespace
+
+MapperInfo MapperInfo_362 = {
+	&MapperNum,
+	_T("晶太 830506C"),
+	COMPAT_FULL,
+	Load,
+	Reset,
+	NULL,
+	VRC4::CPUCycle,
+	NULL,
+	VRC4::SaveLoad,
+	NULL,
+	NULL
+};
